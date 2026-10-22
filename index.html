@@ -4,7 +4,74 @@
     <meta charset="UTF-8" />
     <script>
       (function() {
-        const suppress = (arg) => typeof arg === 'string' && (arg.includes('[vite]') || arg.includes('failed to connect to websocket'));
+        if (typeof window !== 'undefined' && window.WebSocket) {
+          const OrigWebSocket = window.WebSocket;
+          function SafeViteWebSocket(url, protocols) {
+            const isVite = protocols === 'vite-hmr' ||
+              (Array.isArray(protocols) && protocols.includes('vite-hmr')) ||
+              (typeof url === 'string' && (url.includes('vite-hmr') || url.includes('/@vite/')));
+            if (!isVite) {
+              return new OrigWebSocket(url, protocols);
+            }
+            const target = new EventTarget();
+            target.url = url;
+            target.readyState = 1; // WebSocket.OPEN
+            target.binaryType = 'blob';
+            target.bufferedAmount = 0;
+            target.extensions = '';
+            target.protocol = 'vite-hmr';
+            target.onopen = null;
+            target.onmessage = null;
+            target.onerror = null;
+            target.onclose = null;
+            target.send = function() {};
+            target.close = function() {
+              target.readyState = 3;
+            };
+            setTimeout(function() {
+              if (target.readyState === 1) {
+                const ev = new Event('open');
+                target.dispatchEvent(ev);
+                if (typeof target.onopen === 'function') target.onopen(ev);
+              }
+            }, 0);
+            return target;
+          }
+          SafeViteWebSocket.prototype = OrigWebSocket.prototype;
+          SafeViteWebSocket.CONNECTING = 0;
+          SafeViteWebSocket.OPEN = 1;
+          SafeViteWebSocket.CLOSING = 2;
+          SafeViteWebSocket.CLOSED = 3;
+          window.WebSocket = SafeViteWebSocket;
+        }
+
+        const isViteWs = (e) => {
+          if (!e) return false;
+          const msg = (e.message || e.reason?.message || (e.stack ? e.stack : '') || (typeof e === 'string' ? e : '')) + '';
+          return msg.includes('WebSocket') || msg.includes('websocket') || msg.includes('[vite]') || msg.includes('@vite/client');
+        };
+
+        window.addEventListener('error', function(e) {
+          if (isViteWs(e.error) || isViteWs(e.message) || isViteWs(e)) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            return true;
+          }
+        }, true);
+
+        window.addEventListener('unhandledrejection', function(e) {
+          if (isViteWs(e.reason) || isViteWs(e)) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+          }
+        }, true);
+
+        const suppress = (arg) => {
+          if (!arg) return false;
+          const str = (arg.message || arg.stack || (typeof arg === 'string' ? arg : '')) + '';
+          return str.includes('[vite]') || str.includes('WebSocket') || str.includes('websocket') || str.includes('@vite/client');
+        };
+
         const _err = console.error;
         console.error = function(...args) {
           if (args.some(suppress)) return;

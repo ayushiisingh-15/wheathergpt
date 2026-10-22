@@ -3,6 +3,12 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { MongoClient } from "mongodb";
+import {
+  PROVENANCE_TYPES,
+  generateCurrentWeatherProvenance,
+  generateFishermanConditionsProvenance
+} from "./src/lib/provenance.js";
+import { getFallbackWeatherForCoords } from "./src/data/indiaWeatherData.js";
 const weatherCache = /* @__PURE__ */ new Map();
 const CACHE_DURATION_MS = 10 * 60 * 1e3;
 function getGeminiClient() {
@@ -895,7 +901,7 @@ async function fetchLiveOpenMeteoWeather(lat, lng, cityName = "") {
 }
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
   app.use(express.json());
   app.get("/api/health", (req, res) => {
     res.json({
@@ -2014,10 +2020,17 @@ async function startServer() {
       const cacheKey = `${lat.toFixed(2)}_${lng.toFixed(2)}_${city.toLowerCase()}`;
       const cached = weatherCache.get(cacheKey);
       if (cached && Date.now() - cached.timestamp < CACHE_DURATION_MS) {
+        const cachedProv = generateCurrentWeatherProvenance(cached.data, {
+          isLive: false,
+          isCached: true,
+          cachedTimestamp: new Date(cached.timestamp).toISOString()
+        });
         return res.json({
           ...cached.data,
           cached: true,
-          cache_age_seconds: Math.round((Date.now() - cached.timestamp) / 1e3)
+          live_available: false,
+          cache_age_seconds: Math.round((Date.now() - cached.timestamp) / 1e3),
+          provenance: cachedProv
         });
       }
 
@@ -2060,23 +2073,57 @@ async function startServer() {
               hazard_summary: isRain ? "Active precipitation observed in region." : isHeat ? "High temperature warning active." : "Normal weather conditions.",
               fetched_at: new Date().toISOString(),
               source: "openweathermap",
-              cached: false
+              cached: false,
+              live_available: true,
+              message: "Live weather observations active."
             };
+            payload.provenance = generateCurrentWeatherProvenance(payload, {
+              isLive: true,
+              isCached: false,
+              apiSource: "OpenWeatherMap API",
+              hasApparentTempApi: true
+            });
             weatherCache.set(cacheKey, { data: payload, timestamp: Date.now() });
             return res.json(payload);
           }
         } catch (owmErr) {
-          console.warn("OpenWeather request failed, using live Open-Meteo:", owmErr);
+          console.warn("OpenWeather request failed, using live Open-Meteo:", owmErr.message);
         }
       }
 
       // Fetch Real Live Open-Meteo Satellite & Air Quality observations
       const liveData = await fetchLiveOpenMeteoWeather(lat, lng, city);
+      liveData.live_available = true;
+      liveData.message = "Live weather observations active.";
+      liveData.provenance = generateCurrentWeatherProvenance(liveData, {
+        isLive: true,
+        isCached: false,
+        apiSource: "Open-Meteo Weather API",
+        hasLiveAirQuality: true,
+        hasLiveUv: true,
+        hasApparentTempApi: true
+      });
       weatherCache.set(cacheKey, { data: liveData, timestamp: Date.now() });
       return res.json(liveData);
     } catch (err) {
-      console.error("Error fetching live weather:", err);
-      res.status(500).json({ error: "Failed to fetch live weather data", message: err.message });
+      console.warn("Error fetching live weather, activating graceful failure handling:", err.message);
+      const fallbackData = getFallbackWeatherForCoords(
+        parseFloat(req.query.lat) || 28.6139,
+        parseFloat(req.query.lng) || 77.209,
+        req.query.city || ""
+      );
+      const prov = generateCurrentWeatherProvenance(fallbackData, {
+        isLive: false,
+        isCached: false,
+        failed: true
+      });
+      return res.json({
+        ...fallbackData,
+        live_available: false,
+        message: "Live weather data unavailable.",
+        provenance: prov,
+        source: "climatological_fallback"
+      });
     }
   });
 
@@ -2338,22 +2385,24 @@ async function startServer() {
 
       // Fetch verified live meteorology for identical data across all views
       let liveWeather = null;
+      let isLiveFetchSuccessful = false;
       try {
         liveWeather = await fetchLiveOpenMeteoWeather(lat, lng, cityName);
+        isLiveFetchSuccessful = true;
       } catch (err) {
-        console.warn("Live weather fetch in /api/fisherman/conditions failed, fallback:", err.message);
+        console.warn("Live weather fetch in /api/fisherman/conditions failed, activating graceful fallback:", err.message);
       }
 
       const windSpeedKmh = liveWeather?.wind_speed ?? 15;
       const windDeg = liveWeather?.wind_direction || "SW";
       const gustSpeedKmh = Math.round(windSpeedKmh * 1.35);
-      const conditionText = liveWeather?.condition || "Coastal Weather Station";
+      const conditionText = liveWeather?.condition || (isLiveFetchSuccessful ? "Coastal Weather Station" : "Coastal Weather Station (Offline Fallback)");
 
       // Marine calculations from centralized engine
       const marineSafety = liveWeather?.marine_safety || {
         status: windSpeedKmh >= 40 ? "red" : windSpeedKmh >= 22 ? "yellow" : "green",
         statusLabel: windSpeedKmh >= 40 ? "Avoid going to sea today" : windSpeedKmh >= 22 ? "Safe to go near shore until 4 PM" : "Safe to Go",
-        reasoning: "Normal marine conditions observed.",
+        reasoning: isLiveFetchSuccessful ? "Normal marine conditions observed." : "Live weather data unavailable. Operating in baseline safety mode.",
         waveHeight: parseFloat(((windSpeedKmh * 0.08) + 0.3).toFixed(1)),
         wavePeriod: Math.round(5 + (((windSpeedKmh * 0.08) + 0.3)) * 1.5),
         swellHeight: parseFloat((((windSpeedKmh * 0.08) + 0.3) * 0.7).toFixed(1)),
@@ -2421,6 +2470,7 @@ async function startServer() {
         fishingBanAlert = "East Coast Conservation Ban active from April 15 to June 14. Support compensation details available at local welfare office.";
       }
 
+      const isLive = Boolean(isLiveFetchSuccessful && liveWeather);
       const payload = {
         locationName: cityName,
         coordinates: { lat, lng },
@@ -2455,14 +2505,69 @@ async function startServer() {
         humidity: liveWeather?.humidity || 78,
         pressure: liveWeather?.pressure || 1010,
         alerts: liveWeather?.alerts || [],
-        source: "Centralized Marine Meteorology Engine",
+        source: isLive ? "Centralized Marine Meteorology Engine" : "Marine Safety Default Baseline",
+        live_available: isLive,
+        message: isLive ? "Live marine weather observations active." : "Live weather data unavailable.",
         timestamp: new Date().toISOString()
       };
 
+      payload.provenance = generateFishermanConditionsProvenance(payload, {
+        isLive,
+        isCached: false,
+        apiSource: isLive ? "Open-Meteo Marine/Forecast API" : "Marine Safety Baseline"
+      });
+
       res.json(payload);
     } catch (err) {
-      console.error("Fisherman conditions error:", err);
-      res.status(500).json({ error: "Failed to compute fisherman safety conditions", message: err.message });
+      console.warn("Fisherman conditions error, activating graceful failure handling:", err.message);
+      const fallbackPayload = {
+        locationName: (req.query.city || "Veraval").trim(),
+        coordinates: {
+          lat: parseFloat(req.query.lat) || 20.9,
+          lng: parseFloat(req.query.lng) || 70.36
+        },
+        status: "green",
+        statusLabel: "Safe to Go (Offline Default)",
+        windSpeed: 15,
+        windDirection: "SW",
+        gustSpeed: 20,
+        waveHeight: 1.5,
+        wavePeriod: 7,
+        swellHeight: 1.1,
+        swellDirection: "SW",
+        visibility: "8.5 km (Clear Marine Visibility)",
+        lightningRisk: "Low Risk",
+        seaSurfaceTemp: 28.0,
+        chlorophyll: 0.45,
+        pfzCoordinates: "20.7200°N, 70.5800°E",
+        pfzDistance: 20,
+        pfzTravelTime: "1.7 hours",
+        pfzDepth: 50,
+        cycloneAlert: null,
+        restrictedAreas: "No fishing within 5km of Marine Biosphere/National Park borders.",
+        shippingLanes: "International Shipping Channel active 15 nautical miles offshore. Exercise caution crossing lanes.",
+        fishingBanAlert: "No current active state-level seasonal bans.",
+        seaRoughness: "Calm (Smooth Sea)",
+        seaStateCode: 1,
+        reasoning: "Live weather data unavailable. Baseline safe parameters applied.",
+        safeReturnTime: "Safe for scheduled trip",
+        tides: TIDE_TIMINGS_MAP.veraval,
+        condition: "Coastal Weather Station (Offline Fallback)",
+        temperature: 29,
+        humidity: 78,
+        pressure: 1010,
+        alerts: [],
+        source: "Marine Safety Default Baseline",
+        live_available: false,
+        message: "Live weather data unavailable.",
+        timestamp: new Date().toISOString()
+      };
+      fallbackPayload.provenance = generateFishermanConditionsProvenance(fallbackPayload, {
+        isLive: false,
+        isCached: false,
+        failed: true
+      });
+      return res.json(fallbackPayload);
     }
   });
 
@@ -3288,7 +3393,7 @@ Guidelines:
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
-        hmr: process.env.DISABLE_HMR === "true" ? false : undefined
+        hmr: false
       },
       appType: "spa"
     });
@@ -3300,10 +3405,19 @@ Guidelines:
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
-  app.listen(PORT, "0.0.0.0", () => {
+  const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`WeatherGPT server active on http://0.0.0.0:${PORT}`);
   });
+  server.on("error", (err) => {
+    console.error("Server listen error:", err);
+  });
 }
+process.on("unhandledRejection", (reason) => {
+  console.warn("Unhandled Rejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+});
 startServer().catch((err) => {
   console.error("Failed to start server:", err);
 });

@@ -32,6 +32,7 @@ import {
   Activity,
   Droplet
 } from "lucide-react";
+import { ProvenanceBadge } from "./ProvenanceBadge";
 
 export const COASTAL_VOICE_LANGUAGES = [
   {
@@ -833,6 +834,24 @@ export function FishermanModeView({ language = "en", initialLocation }) {
                 </div>
               )}
 
+              {/* Graceful Offline / Live Weather Warning Banner */}
+              {conditionsData.live_available === false && (
+                <div className="bg-amber-50 border border-amber-200/90 rounded-2xl p-3.5 mb-3 flex items-start gap-2.5 text-amber-950 text-xs shadow-2xs">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="flex-1 space-y-0.5">
+                    <div className="font-extrabold text-amber-900 flex items-center gap-1.5 flex-wrap">
+                      <span>{fishermanLang === "hi" ? "लाइव मौसम डेटा अनुपलब्ध है।" : "Live weather data unavailable."}</span>
+                      <ProvenanceBadge type="default" language={fishermanLang} size="xs" />
+                    </div>
+                    <p className="text-[11px] text-amber-800 leading-normal">
+                      {fishermanLang === "hi"
+                        ? "लाइव सेंसर अनुपलब्ध होने के कारण सुरक्षा मॉडल और वैज्ञानिक सूत्रों द्वारा अनुमानित डेटा प्रदर्शित किया जा रहा है।"
+                        : "Due to temporary live sensor unavailability, values are derived from marine models, formulas, and baseline safety thresholds."}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Core Safety Status & Audio Briefing Card */}
               <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm relative overflow-hidden">
                 <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
@@ -847,8 +866,13 @@ export function FishermanModeView({ language = "en", initialLocation }) {
 
                 <div className="flex flex-col items-center justify-center my-4 space-y-2">
                   {renderTrafficLight(conditionsData.status)}
-                  <h2 className="text-xl font-black text-slate-900 text-center tracking-tight">
-                    {fishermanLang === "hi" ? "सलाह: " : "Advice: "} “{conditionsData.statusLabel}”
+                  <h2 className="text-xl font-black text-slate-900 text-center tracking-tight flex items-center justify-center flex-wrap gap-1.5">
+                    <span>{fishermanLang === "hi" ? "सलाह: " : "Advice: "} “{conditionsData.statusLabel}”</span>
+                    <ProvenanceBadge
+                      type={conditionsData.provenance?.statusLabel?.source_type || (conditionsData.live_available ? "estimated" : "default")}
+                      language={fishermanLang}
+                      detail={conditionsData.provenance?.statusLabel}
+                    />
                   </h2>
                   <p className="text-xs text-slate-600 text-center font-bold max-w-md bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200/50">
                     {conditionsData.reasoning}
@@ -1004,24 +1028,52 @@ export function FishermanModeView({ language = "en", initialLocation }) {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
                   <div className="bg-white p-3 rounded-2xl border border-slate-150">
                     <span className="text-[10px] text-slate-500 font-bold uppercase">{fishermanLang === "hi" ? "सुरक्षा स्थिति" : "Safety"}</span>
-                    <div className="text-xs font-black text-rose-600 mt-1 flex items-center gap-1">
-                      <span className={`w-2 h-2 rounded-full ${
-                        conditionsData.status === "red" ? "bg-rose-600 animate-ping" : conditionsData.status === "yellow" ? "bg-amber-500 animate-ping" : "bg-emerald-500"
-                      }`}></span>
-                      {conditionsData.statusLabel}
+                    <div className="text-xs font-black text-rose-600 mt-1 flex items-center justify-between flex-wrap gap-1">
+                      <span className="flex items-center gap-1">
+                        <span className={`w-2 h-2 rounded-full ${
+                          conditionsData.status === "red" ? "bg-rose-600 animate-ping" : conditionsData.status === "yellow" ? "bg-amber-500 animate-ping" : "bg-emerald-500"
+                        }`}></span>
+                        {conditionsData.statusLabel}
+                      </span>
+                      <ProvenanceBadge
+                        type={conditionsData.provenance?.statusLabel?.source_type || (conditionsData.live_available ? "estimated" : "default")}
+                        language={fishermanLang}
+                        detail={conditionsData.provenance?.statusLabel}
+                      />
                     </div>
                   </div>
                   <div className="bg-white p-3 rounded-2xl border border-slate-150">
                     <span className="text-[10px] text-slate-500 font-bold uppercase">{fishermanLang === "hi" ? "पवन सीमा" : "Wind limits"}</span>
-                    <div className="text-xs font-black text-slate-900 mt-1">{conditionsData.windSpeed} km/h</div>
+                    <div className="text-xs font-black text-slate-900 mt-1 flex items-center justify-between flex-wrap gap-1">
+                      <span>{conditionsData.windSpeed} km/h</span>
+                      <ProvenanceBadge
+                        type={conditionsData.provenance?.windSpeed?.source_type || (conditionsData.live_available ? "live" : "default")}
+                        language={fishermanLang}
+                        detail={conditionsData.provenance?.windSpeed}
+                      />
+                    </div>
                   </div>
                   <div className="bg-white p-3 rounded-2xl border border-slate-150">
                     <span className="text-[10px] text-slate-500 font-bold uppercase">{fishermanLang === "hi" ? "तरंग ऊंचाई" : "Wave rough"}</span>
-                    <div className="text-xs font-black text-slate-900 mt-1">{conditionsData.waveHeight} meters</div>
+                    <div className="text-xs font-black text-slate-900 mt-1 flex items-center justify-between flex-wrap gap-1">
+                      <span>{conditionsData.waveHeight} meters</span>
+                      <ProvenanceBadge
+                        type={conditionsData.provenance?.waveHeight?.source_type || "estimated"}
+                        language={fishermanLang}
+                        detail={conditionsData.provenance?.waveHeight}
+                      />
+                    </div>
                   </div>
                   <div className="bg-white p-3 rounded-2xl border border-slate-150">
                     <span className="text-[10px] text-slate-500 font-bold uppercase">{fishermanLang === "hi" ? "वापसी सलाह" : "Return plan"}</span>
-                    <div className="text-xs font-black text-amber-700 mt-1">{conditionsData.safeReturnTime}</div>
+                    <div className="text-xs font-black text-amber-700 mt-1 flex items-center justify-between flex-wrap gap-1">
+                      <span className="truncate max-w-[90px]">{conditionsData.safeReturnTime}</span>
+                      <ProvenanceBadge
+                        type={conditionsData.provenance?.safeReturnTime?.source_type || (conditionsData.live_available ? "estimated" : "default")}
+                        language={fishermanLang}
+                        detail={conditionsData.provenance?.safeReturnTime}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1038,14 +1090,35 @@ export function FishermanModeView({ language = "en", initialLocation }) {
                     <Wind className="w-4 h-4 text-blue-600" />
                   </div>
                   <div className="space-y-1">
-                    <div className="text-2xl font-black text-slate-900">
-                      {conditionsData.windSpeed} <span className="text-xs font-semibold text-slate-500">km/h</span>
+                    <div className="text-2xl font-black text-slate-900 flex items-center justify-between">
+                      <div>
+                        {conditionsData.windSpeed} <span className="text-xs font-semibold text-slate-500">km/h</span>
+                      </div>
+                      <ProvenanceBadge
+                        type={conditionsData.provenance?.windSpeed?.source_type || (conditionsData.live_available ? "live" : "default")}
+                        language={fishermanLang}
+                        detail={conditionsData.provenance?.windSpeed}
+                      />
                     </div>
-                    <div className="text-[11px] text-slate-500 font-semibold">
-                      {fishermanLang === "hi" ? "दिशा" : "Direction"}: <span className="text-slate-800 font-extrabold">{conditionsData.windDirection}</span>
+                    <div className="text-[11px] text-slate-500 font-semibold flex items-center justify-between">
+                      <span>
+                        {fishermanLang === "hi" ? "दिशा" : "Direction"}: <span className="text-slate-800 font-extrabold">{conditionsData.windDirection}</span>
+                      </span>
+                      <ProvenanceBadge
+                        type={conditionsData.provenance?.windDirection?.source_type || (conditionsData.live_available ? "live" : "default")}
+                        language={fishermanLang}
+                        detail={conditionsData.provenance?.windDirection}
+                      />
                     </div>
-                    <div className="text-[11px] text-slate-500 font-semibold">
-                      {fishermanLang === "hi" ? "झोंके तक" : "Max gust"}: <span className="text-amber-600 font-extrabold">{conditionsData.gustSpeed} km/h</span>
+                    <div className="text-[11px] text-slate-500 font-semibold flex items-center justify-between">
+                      <span>
+                        {fishermanLang === "hi" ? "झोंके तक" : "Max gust"}: <span className="text-amber-600 font-extrabold">{conditionsData.gustSpeed} km/h</span>
+                      </span>
+                      <ProvenanceBadge
+                        type={conditionsData.provenance?.gustSpeed?.source_type || "estimated"}
+                        language={fishermanLang}
+                        detail={conditionsData.provenance?.gustSpeed}
+                      />
                     </div>
                   </div>
                 </div>
@@ -1059,14 +1132,35 @@ export function FishermanModeView({ language = "en", initialLocation }) {
                     <Waves className="w-4 h-4 text-cyan-600" />
                   </div>
                   <div className="space-y-1">
-                    <div className="text-2xl font-black text-slate-900">
-                      {conditionsData.waveHeight} <span className="text-xs font-semibold text-slate-500">m</span>
+                    <div className="text-2xl font-black text-slate-900 flex items-center justify-between">
+                      <div>
+                        {conditionsData.waveHeight} <span className="text-xs font-semibold text-slate-500">m</span>
+                      </div>
+                      <ProvenanceBadge
+                        type={conditionsData.provenance?.waveHeight?.source_type || "estimated"}
+                        language={fishermanLang}
+                        detail={conditionsData.provenance?.waveHeight}
+                      />
                     </div>
-                    <div className="text-[11px] text-slate-500 font-semibold">
-                      {fishermanLang === "hi" ? "तरंग अवधि" : "Wave period"}: <span className="text-slate-800 font-extrabold">{conditionsData.wavePeriod} sec</span>
+                    <div className="text-[11px] text-slate-500 font-semibold flex items-center justify-between">
+                      <span>
+                        {fishermanLang === "hi" ? "तरंग अवधि" : "Wave period"}: <span className="text-slate-800 font-extrabold">{conditionsData.wavePeriod} sec</span>
+                      </span>
+                      <ProvenanceBadge
+                        type={conditionsData.provenance?.wavePeriod?.source_type || "estimated"}
+                        language={fishermanLang}
+                        detail={conditionsData.provenance?.wavePeriod}
+                      />
                     </div>
-                    <div className="text-[11px] text-slate-500 font-semibold">
-                      {fishermanLang === "hi" ? "स्वेल ऊंचाई" : "Swell rough"}: <span className="text-cyan-600 font-extrabold">{conditionsData.swellHeight}m ({conditionsData.swellDirection})</span>
+                    <div className="text-[11px] text-slate-500 font-semibold flex items-center justify-between">
+                      <span>
+                        {fishermanLang === "hi" ? "स्वेल ऊंचाई" : "Swell rough"}: <span className="text-cyan-600 font-extrabold">{conditionsData.swellHeight}m ({conditionsData.swellDirection})</span>
+                      </span>
+                      <ProvenanceBadge
+                        type={conditionsData.provenance?.swellHeight?.source_type || "estimated"}
+                        language={fishermanLang}
+                        detail={conditionsData.provenance?.swellHeight}
+                      />
                     </div>
                   </div>
                 </div>
@@ -1080,14 +1174,35 @@ export function FishermanModeView({ language = "en", initialLocation }) {
                     <Droplet className="w-4 h-4 text-sky-600" />
                   </div>
                   <div className="space-y-1">
-                    <div className="text-2xl font-black text-slate-900">
-                      {conditionsData.seaSurfaceTemp} <span className="text-xs font-semibold text-slate-500">°C</span>
+                    <div className="text-2xl font-black text-slate-900 flex items-center justify-between">
+                      <div>
+                        {conditionsData.seaSurfaceTemp} <span className="text-xs font-semibold text-slate-500">°C</span>
+                      </div>
+                      <ProvenanceBadge
+                        type={conditionsData.provenance?.seaSurfaceTemp?.source_type || "estimated"}
+                        language={fishermanLang}
+                        detail={conditionsData.provenance?.seaSurfaceTemp}
+                      />
                     </div>
-                    <div className="text-[11px] text-slate-500 font-semibold">
-                      {fishermanLang === "hi" ? "क्लोरोफिल" : "Chlorophyll"}: <span className="text-emerald-700 font-extrabold">{conditionsData.chlorophyll} mg/m³</span>
+                    <div className="text-[11px] text-slate-500 font-semibold flex items-center justify-between">
+                      <span>
+                        {fishermanLang === "hi" ? "क्लोरोफिल" : "Chlorophyll"}: <span className="text-emerald-700 font-extrabold">{conditionsData.chlorophyll} mg/m³</span>
+                      </span>
+                      <ProvenanceBadge
+                        type={conditionsData.provenance?.chlorophyll?.source_type || "estimated"}
+                        language={fishermanLang}
+                        detail={conditionsData.provenance?.chlorophyll}
+                      />
                     </div>
-                    <div className="text-[11px] text-slate-500 font-semibold">
-                      {fishermanLang === "hi" ? "विजिबिलिटी" : "Visibility"}: <span className="text-slate-800 font-extrabold">{conditionsData.visibility}</span>
+                    <div className="text-[11px] text-slate-500 font-semibold flex items-center justify-between">
+                      <span>
+                        {fishermanLang === "hi" ? "विजिबिलिटी" : "Visibility"}: <span className="text-slate-800 font-extrabold">{conditionsData.visibility}</span>
+                      </span>
+                      <ProvenanceBadge
+                        type={conditionsData.provenance?.visibility?.source_type || (conditionsData.live_available ? "estimated" : "default")}
+                        language={fishermanLang}
+                        detail={conditionsData.provenance?.visibility}
+                      />
                     </div>
                   </div>
                 </div>
@@ -1098,10 +1213,17 @@ export function FishermanModeView({ language = "en", initialLocation }) {
               <div className="bg-amber-50/50 border border-amber-200/80 rounded-3xl p-4 shadow-sm">
                 <div className="flex items-start gap-3">
                   <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="text-xs font-extrabold text-amber-800 uppercase tracking-wide">
-                      {fishermanLang === "hi" ? "वापसी सलाह व समय खिड़की" : "Recommended Return Window Advice"}
-                    </h4>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <h4 className="text-xs font-extrabold text-amber-800 uppercase tracking-wide">
+                        {fishermanLang === "hi" ? "वापसी सलाह व समय खिड़की" : "Recommended Return Window Advice"}
+                      </h4>
+                      <ProvenanceBadge
+                        type={conditionsData.provenance?.safeReturnTime?.source_type || (conditionsData.live_available ? "estimated" : "default")}
+                        language={fishermanLang}
+                        detail={conditionsData.provenance?.safeReturnTime}
+                      />
+                    </div>
                     <p className="text-xs text-slate-900 font-black mt-1 leading-normal">
                       {conditionsData.safeReturnTime}
                     </p>
@@ -1118,6 +1240,11 @@ export function FishermanModeView({ language = "en", initialLocation }) {
                   <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-2">
                     <Sunrise className="w-4 h-4 text-blue-600" />
                     {fishermanLang === "hi" ? `ज्वार-भाटा सारणी (${conditionsData.tides.port})` : `Tide Timings & Harbour Ref (${conditionsData.tides.port})`}
+                    <ProvenanceBadge
+                      type={conditionsData.provenance?.tides?.source_type || "default"}
+                      language={fishermanLang}
+                      detail={conditionsData.provenance?.tides}
+                    />
                   </span>
                   <span className="text-[9px] bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-lg font-bold border border-slate-200 uppercase tracking-wide">
                     {conditionsData.tides.type}
@@ -1351,32 +1478,60 @@ export function FishermanModeView({ language = "en", initialLocation }) {
                 <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none">
                   <Waves className="w-44 h-44 text-white" />
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-1">
                   <span className="text-[10px] bg-emerald-600 font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                     {fishermanLang === "hi" ? "सैटेलाइट अनुकूलित जोन" : "Chlorophyll & SST Radar Match"}
                   </span>
-                  <span className="text-xs font-mono opacity-85">{conditionsData.pfzCoordinates}</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs font-mono opacity-85">{conditionsData.pfzCoordinates}</span>
+                    <ProvenanceBadge
+                      type={conditionsData.provenance?.pfzCoordinates?.source_type || "estimated"}
+                      language={fishermanLang}
+                      detail={conditionsData.provenance?.pfzCoordinates}
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-1">
                   <h3 className="text-lg font-black text-white">
                     {fishermanLang === "hi" ? "मछली झुंड एकत्रण क्षेत्र संख्या-4" : "Target Aggregation Coordinates Zone-4"}
                   </h3>
-                  <p className="text-xs opacity-90">
-                    {fishermanLang === "hi" 
-                      ? `पोर्ट ${conditionsData.locationName} से दूरी: ${conditionsData.pfzDistance} किमी (${conditionsData.pfzTravelTime} यात्रा समय)` 
-                      : `Harbour Offset: ${conditionsData.pfzDistance} km (${conditionsData.pfzTravelTime} estimated travel time at 10 knots)`}
-                  </p>
+                  <div className="text-xs opacity-90 flex items-center justify-between flex-wrap gap-1">
+                    <span>
+                      {fishermanLang === "hi" 
+                        ? `पोर्ट ${conditionsData.locationName} से दूरी: ${conditionsData.pfzDistance} किमी (${conditionsData.pfzTravelTime} यात्रा समय)` 
+                        : `Harbour Offset: ${conditionsData.pfzDistance} km (${conditionsData.pfzTravelTime} estimated travel time at 10 knots)`}
+                    </span>
+                    <ProvenanceBadge
+                      type={conditionsData.provenance?.pfzDistance?.source_type || "estimated"}
+                      language={fishermanLang}
+                      detail={conditionsData.provenance?.pfzDistance}
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/10">
                   <div className="bg-white/5 p-2 rounded-xl text-center">
                     <div className="text-[9px] opacity-75 font-semibold uppercase">{fishermanLang === "hi" ? "क्लोरोफिल घनत्व" : "Chlorophyll"}</div>
-                    <div className="text-sm font-black text-emerald-400 mt-0.5">{conditionsData.chlorophyll} mg/m³</div>
+                    <div className="text-sm font-black text-emerald-400 mt-0.5 flex items-center justify-center gap-1">
+                      <span>{conditionsData.chlorophyll} mg/m³</span>
+                      <ProvenanceBadge
+                        type={conditionsData.provenance?.chlorophyll?.source_type || "estimated"}
+                        language={fishermanLang}
+                        detail={conditionsData.provenance?.chlorophyll}
+                      />
+                    </div>
                   </div>
                   <div className="bg-white/5 p-2 rounded-xl text-center">
                     <div className="text-[9px] opacity-75 font-semibold uppercase">{fishermanLang === "hi" ? "जल की गहराई" : "Bathymetry Depth"}</div>
-                    <div className="text-sm font-black text-sky-300 mt-0.5">~{conditionsData.pfzDepth} meters</div>
+                    <div className="text-sm font-black text-sky-300 mt-0.5 flex items-center justify-center gap-1">
+                      <span>~{conditionsData.pfzDepth} meters</span>
+                      <ProvenanceBadge
+                        type={conditionsData.provenance?.pfzDepth?.source_type || "estimated"}
+                        language={fishermanLang}
+                        detail={conditionsData.provenance?.pfzDepth}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

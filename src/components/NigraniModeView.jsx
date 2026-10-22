@@ -1187,11 +1187,6 @@ export function NigraniModeView({ location, persona, language, weather, onTabCha
                 {t.liveHubTag || (isHi ? "लाइव हब" : "Live Hub")}
               </span>
             </div>
-            <p className="text-xs sm:text-sm text-slate-600 font-medium leading-tight mt-0.5">
-              {isHi
-                ? "केवल आधिकारिक सरकारी बुलेटिन (IMD, NDMA, SDMA) सत्यापित अलर्ट — अनौपचारिक डेटा प्रतिबंधित"
-                : "100% Official Government (IMD, NDMA, SDMA) Verified Bulletins — Unofficial Data Restricted"}
-            </p>
           </div>
         </div>
 
@@ -1231,11 +1226,6 @@ export function NigraniModeView({ location, persona, language, weather, onTabCha
                   {isHi ? "100% संरेखित" : "100% Synchronized"}
                 </span>
               </h2>
-              <p className="text-[11px] text-slate-500 font-medium">
-                {isHi
-                  ? `स्थान: ${location?.city || weather?.city || "आपका क्षेत्र"} • किसान, नागरिक, नाविक, यात्री व AI चैट सभी एक ही चेतावनी स्तर पर आधारित हैं`
-                  : `Location: ${location?.city || weather?.city || "Your Sector"} • Farmer, Citizen, Marine, Commuter & Chat all share identical verified telemetry`}
-              </p>
             </div>
           </div>
 
@@ -1257,99 +1247,79 @@ export function NigraniModeView({ location, persona, language, weather, onTabCha
         {/* 4 Persona Status Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
           {/* Farmer */}
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between gap-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                <Sprout className="w-3.5 h-3.5 text-emerald-600" />
-                {isHi ? "किसान परामर्श" : "Farmer Agromet"}
-              </span>
-              <span
-                className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded ${
-                  crossModeTruth.farmer.status === "red"
-                    ? "bg-red-100 text-red-800"
-                    : crossModeTruth.farmer.status === "yellow"
-                    ? "bg-amber-100 text-amber-800"
-                    : "bg-emerald-100 text-emerald-800"
-                }`}
-              >
-                {crossModeTruth.farmer.statusLabel}
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-600 leading-tight">
-              {crossModeTruth.farmer.irrigationText}
-            </p>
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2">
+            <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              <Sprout className="w-3.5 h-3.5 text-emerald-600" />
+              {isHi ? "किसान परामर्श" : "Farmer Agromet"}
+            </span>
+            <span
+              className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded ${
+                crossModeTruth.farmer.status === "red"
+                  ? "bg-red-100 text-red-800"
+                  : crossModeTruth.farmer.status === "yellow"
+                  ? "bg-amber-100 text-amber-800"
+                  : "bg-emerald-100 text-emerald-800"
+              }`}
+            >
+              {crossModeTruth.farmer.statusLabel}
+            </span>
           </div>
 
           {/* Marine */}
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between gap-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                <Anchor className="w-3.5 h-3.5 text-blue-600" />
-                {isHi ? "समुद्री / नाविक" : "Maritime & Coastal"}
-              </span>
-              <span
-                className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded ${
-                  crossModeTruth.marine.status === "red"
-                    ? "bg-red-100 text-red-800"
-                    : crossModeTruth.marine.status === "yellow"
-                    ? "bg-amber-100 text-amber-800"
-                    : "bg-emerald-100 text-emerald-800"
-                }`}
-              >
-                {crossModeTruth.marine.statusLabel}
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-600 leading-tight">
-              {crossModeTruth.marine.reasoning || (isHi ? "लहरें व हवा सामान्य सीमा में।" : "Waves and swell within baseline limits.")}
-            </p>
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2">
+            <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              <Anchor className="w-3.5 h-3.5 text-blue-600" />
+              {isHi ? "समुद्री / नाविक" : "Maritime & Coastal"}
+            </span>
+            <span
+              className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded ${
+                crossModeTruth.marine.status === "red"
+                  ? "bg-red-100 text-red-800"
+                  : crossModeTruth.marine.status === "yellow"
+                  ? "bg-amber-100 text-amber-800"
+                  : "bg-emerald-100 text-emerald-800"
+              }`}
+            >
+              {crossModeTruth.marine.statusLabel}
+            </span>
           </div>
 
           {/* Citizen */}
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between gap-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-indigo-600" />
-                {isHi ? "नागरिक व स्वास्थ्य" : "Citizen & Health"}
-              </span>
-              <span
-                className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded ${
-                  crossModeTruth.citizen.status === "danger"
-                    ? "bg-red-100 text-red-800"
-                    : crossModeTruth.citizen.status === "caution"
-                    ? "bg-amber-100 text-amber-800"
-                    : "bg-emerald-100 text-emerald-800"
-                }`}
-              >
-                {crossModeTruth.citizen.statusLabel}
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-600 leading-tight">
-              {crossModeTruth.citizen.outdoorFitnessReason || crossModeTruth.citizen.summary}
-            </p>
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2">
+            <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              <User className="w-3.5 h-3.5 text-indigo-600" />
+              {isHi ? "नागरिक व स्वास्थ्य" : "Citizen & Health"}
+            </span>
+            <span
+              className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded ${
+                crossModeTruth.citizen.status === "danger"
+                  ? "bg-red-100 text-red-800"
+                  : crossModeTruth.citizen.status === "caution"
+                  ? "bg-amber-100 text-amber-800"
+                  : "bg-emerald-100 text-emerald-800"
+              }`}
+            >
+              {crossModeTruth.citizen.statusLabel}
+            </span>
           </div>
 
           {/* Disaster Surveillance (Nigrani) */}
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between gap-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                <Shield className="w-3.5 h-3.5 text-rose-600" />
-                {isHi ? "आपदा प्रबंधन" : "NDMA Response"}
-              </span>
-              <span
-                className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded ${
-                  crossModeTruth.nigrani.alertLevel === "red"
-                    ? "bg-red-100 text-red-800"
-                    : crossModeTruth.nigrani.alertLevel === "warning"
-                    ? "bg-amber-100 text-amber-800"
-                    : "bg-emerald-100 text-emerald-800"
-                }`}
-              >
-                {crossModeTruth.nigrani.alertLevel.toUpperCase()}
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-600 leading-tight">
-              {crossModeTruth.nigrani.ndmaProtocol}
-            </p>
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2">
+            <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              <Shield className="w-3.5 h-3.5 text-rose-600" />
+              {isHi ? "आपदा प्रबंधन" : "NDMA Response"}
+            </span>
+            <span
+              className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded ${
+                crossModeTruth.nigrani.alertLevel === "red"
+                  ? "bg-red-100 text-red-800"
+                  : crossModeTruth.nigrani.alertLevel === "warning"
+                  ? "bg-amber-100 text-amber-800"
+                  : "bg-emerald-100 text-emerald-800"
+              }`}
+            >
+              {crossModeTruth.nigrani.alertLevel.toUpperCase()}
+            </span>
           </div>
         </div>
       </section>
@@ -1403,13 +1373,6 @@ export function NigraniModeView({ location, persona, language, weather, onTabCha
                 <div>
                   <span className="block text-sm font-bold tracking-tight leading-tight">
                     {tab.label}
-                  </span>
-                  <span
-                    className={`block text-[11px] leading-tight mt-0.5 line-clamp-1 ${
-                      isActive ? "text-slate-300" : "text-slate-500"
-                    }`}
-                  >
-                    {tab.desc}
                   </span>
                 </div>
               </button>
@@ -1863,11 +1826,6 @@ export function NigraniModeView({ location, persona, language, weather, onTabCha
               <MapPin className="w-4 h-4 text-rose-600" />
               <span>{t.nigraniMapTitle || (isHi ? "निगरानी मौसम आपदा मानचित्र" : "Nigrani Meteorological Hazard Map")}</span>
             </h2>
-            <p className="text-[11px] text-slate-500 font-medium">
-              {isHi
-                ? "गंभीरता अनुसार रंग-संकेतित पिन • किसी भी अलर्ट कार्ड पर जाने के लिए पिन पर टैप करें"
-                : "Pins color-coded by severity • Tap any pin to focus and scroll to alert card"}
-            </p>
           </div>
 
           <div className="flex items-center gap-1">
